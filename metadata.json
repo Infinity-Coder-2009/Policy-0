@@ -1,0 +1,6 @@
+{
+  "name": "Policy-0 Studio",
+  "description": "A platform where users describe a task with text or video and get deployable robot policies validated in simulation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
