@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Logo } from '../Logo';
-import { X, Mail, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { X, Mail, Lock, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -14,8 +14,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -35,8 +36,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
       }
     }
 
-    onSuccess(email);
-    onClose();
+    setLoading(true);
+    try {
+      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mode === 'login' ? { email, password } : { email, password, name: email.split('@')[0] }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || data.details?.[0] || 'Authentication failed');
+      }
+
+      // Store tokens in localStorage
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+
+      onSuccess(data.user.email);
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -83,7 +108,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="engineer@robotics-lab.com"
                 required
-                className="w-full bg-[#0A0A1A] border border-[#2A2A4A] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#0055FF]"
+                disabled={loading}
+                className="w-full bg-[#0A0A1A] border border-[#2A2A4A] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#0055FF] disabled:opacity-50"
               />
             </div>
           </div>
@@ -100,7 +126,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 required
-                className="w-full bg-[#0A0A1A] border border-[#2A2A4A] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#0055FF]"
+                disabled={loading}
+                className="w-full bg-[#0A0A1A] border border-[#2A2A4A] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#0055FF] disabled:opacity-50"
               />
             </div>
           </div>
@@ -119,7 +146,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••••••"
                     required
-                    className="w-full bg-[#0A0A1A] border border-[#2A2A4A] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#0055FF]"
+                    disabled={loading}
+                    className="w-full bg-[#0A0A1A] border border-[#2A2A4A] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#0055FF] disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -130,7 +158,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
                   id="terms-check"
                   checked={acceptTerms}
                   onChange={(e) => setAcceptTerms(e.target.checked)}
-                  className="w-4 h-4 accent-[#0055FF] rounded cursor-pointer"
+                  disabled={loading}
+                  className="w-4 h-4 accent-[#0055FF] rounded cursor-pointer disabled:opacity-50"
                 />
                 <label htmlFor="terms-check" className="text-xs text-[#A0A0B8] cursor-pointer">
                   I accept Policy-0 Terms of Service and Privacy Policy
@@ -141,8 +170,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-[#0055FF] hover:bg-[#0044DD] text-white font-bold text-xs shadow-lg shadow-[#0055FF]/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            disabled={loading}
+            className="w-full py-3 rounded-xl bg-[#0055FF] hover:bg-[#0044DD] text-white font-bold text-xs shadow-lg shadow-[#0055FF]/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             <span>{mode === 'login' ? 'Log In to Studio' : 'Create Free Account'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>

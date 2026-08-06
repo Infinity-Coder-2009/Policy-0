@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: policy-0-backend
+    runtime: node
+    plan: standard
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /health/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATA_BACKEND
+        value: postgres
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        value: a4308bdd9ace72869ffb19b693113cd7bf15a1b8901e1e6ed86a9f16e7c8c0c895486739254f5d827a812646b3b267beae4213997c5db23cb2f99f8a2f530daf
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_API_BASE
+        value: https://api.nvidia.com
+      - key: NIM_LLM_ENDPOINT
+        value: https://integrate.api.nvidia.com/v1/chat/completions
+      - key: COSMOS_NIM_ENDPOINT
+        value: https://integrate.api.nvidia.com/v1/cosmos/reasoner
+      - key: ISAAC_SIM_ENDPOINT
+        value: http://localhost:8211
+      - key: ISAAC_LAB_ENDPOINT
+        value: http://localhost:8212
+      - key: OSMO_ENDPOINT
+        value: https://api.nvidia.com/v1/osmo
+      - key: CORS_ORIGINS
+        value: https://policy-0.vercel.app
+      - key: USE_COSMOS_VLM
+        value: "true"
+      - key: USE_NIM_LLM
+        value: "true"
+      - key: USE_ISAAC_SIM
+        value: "true"
+      - key: USE_ISAAC_LAB
+        value: "true"
+      - key: USE_ISAAC_SIM_RTX
+        value: "true"
+      - key: USE_LEAPP_EXPORT
+        value: "true"
+      - key: USE_ISAAC_ROS
+        value: "true"
+      - key: USE_OSMO
+        value: "true"
+      - key: WAIT_FOR_ISAAC_SIM
+        value: "false"
+      - key: LOG_LEVEL
+        value: info

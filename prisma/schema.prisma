@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  role          Role      @default(OPERATOR)
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  refreshTokens RefreshToken[]
+  apiKeys       ApiKey[]
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  keyHash   String   @unique
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastUsed  DateTime?
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  users     User[]
+
+  @@map("organizations")
+}
+
+model Robot {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  type            String
+  manufacturer    String
+  dof             Int
+  payloadKg       Float
+  reachMm         Int
+  description     String?
+  capabilities    String[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("robots")
+}
+
+model Policy {
+  id        String   @id @default(cuid())
+  policy    Json
+  mode      Mode     @default(SIMULATED)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  versions  PolicyVersion[]
+
+  @@map("policies")
+}
+
+model PolicyVersion {
+  id         String   @id @default(cuid())
+  policyId   String
+  policy     Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  version    Int
+  policyJson Json
+  verified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([policyId])
+  @@map("policy_versions")
+}
+
+model DeploymentRun {
+  id              String       @id @default(cuid())
+  policyVersionId String
+  source          RunSource    @default(SIMULATED)
+  status          RunStatus    @default(PENDING)
+  success         Boolean?
+  metrics         Json?
+  error           String?
+  startedAt       DateTime     @default(now())
+  completedAt     DateTime?
+  failures        CategorizedFailure[]
+
+  @@map("deployment_runs")
+}
+
+model CategorizedFailure {
+  id            String   @id @default(cuid())
+  runId         String
+  run           DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  category      FailureCategory
+  description   String
+  count         Int      @default(1)
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+
+  @@index([runId])
+  @@map("categorized_failures")
+}
+
+model ImprovementRecommendation {
+  id              String   @id @default(cuid())
+  runId           String?
+  title           String
+  description     String
+  priority        Priority @default(MEDIUM)
+  category        String
+  estimatedGain   Float?
+  appliedAt       DateTime?
+  appliedVersion  Int?
+
+  @@map("improvement_recommendations")
+}
+
+model NvJob {
+  id          String   @id @default(cuid())
+  jobId       String   @unique
+  service     String
+  status      String
+  payload     Json?
+  result      Json?
+  error       String?
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([service])
+  @@index([status])
+  @@map("nvidia_jobs")
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum Mode {
+  SIMULATED
+  REAL
+}
+
+enum RunSource {
+  SIMULATED
+  ISAAC_SIM
+  ISAAC_LAB
+  OSMO
+  REAL_WORLD
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum FailureCategory {
+  CONTACT_JAM
+  IK_SINGULARITY
+  COLLISION
+  TIMEOUT
+  JOINT_LIMIT
+  PERCEPTION
+  PLANNING
+  SIMULATION_ARTIFACT
+  UNKNOWN
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}

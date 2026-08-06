@@ -558,4 +558,5 @@ export const RobotSimCanvas: React.FC<RobotSimCanvasProps> = ({ policy }) => {
     </div>
   );
 };
+export default RobotSimCanvas;
 

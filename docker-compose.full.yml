@@ -1,0 +1,356 @@
+# =============================================================================
+# Policy-0 Full Stack Docker Compose
+# =============================================================================
+# Services:
+#   - policy0: Main application (Express + Vite frontend)
+#   - isaac-sim: NVIDIA Isaac Sim for physics simulation
+#   - isaac-lab: NVIDIA Isaac Lab for RL training
+#   - redis: Task queue and caching
+#   - postgres: Persistent data (optional, for production)
+#   - prometheus: Metrics collection
+#   - grafana: Visualization
+#   - nginx: Reverse proxy + SSL termination
+# -----------------------------------------------------------------------------
+
+version: '3.8'
+
+# -----------------------------------------------------------------------------
+# Networks
+# -----------------------------------------------------------------------------
+networks:
+  policy0-internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+  policy0-gpu:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "1500"
+
+# -----------------------------------------------------------------------------
+# Volumes
+# -----------------------------------------------------------------------------
+volumes:
+  policy0-data:
+    driver: local
+  policy0-exports:
+    driver: local
+  policy0-uploads:
+    driver: local
+  isaac-sim-cache:
+    driver: local
+  isaac-lab-cache:
+    driver: local
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# -----------------------------------------------------------------------------
+# Services
+# -----------------------------------------------------------------------------
+services:
+  # ---------------------------------------------------------------------------
+  # Main Application
+  # ---------------------------------------------------------------------------
+  policy0:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        BUILD_DATE: ${BUILD_DATE:-${shell date -u +'%Y-%m-%dT%H:%M:%SZ'}}
+        VCS_REF: ${VCS_REF:-${shell git rev-parse --short HEAD}}
+        VERSION: ${VERSION:-dev}
+    container_name: policy0-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATA_DIR=/app/data
+      - EXPORTS_DIR=/app/exports
+      - UPLOADS_DIR=/app/uploads
+      # Isaac Sim integration
+      - USE_ISAAC_SIM=${USE_ISAAC_SIM:-true}
+      - ISAAC_SIM_ENDPOINT=http://isaac-sim:8211
+      # Isaac Lab integration
+      - USE_ISAAC_LAB=${USE_ISAAC_LAB:-true}
+      - ISAAC_LAB_ENDPOINT=http://isaac-lab:8212
+      # OSMO orchestration
+      - USE_OSMO=${USE_OSMO:-false}
+      - OSMO_ENDPOINT=${OSMO_ENDPOINT:-https://api.nvidia.com/v1/osmo}
+      # NVIDIA API
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - NVIDIA_API_BASE=https://api.nvidia.com
+      # Cosmos VLM
+      - USE_COSMOS_VLM=${USE_COSMOS_VLM:-false}
+      - COSMOS_NIM_ENDPOINT=https://api.nvidia.com/v1/cosmos/reasoner
+      # NIM LLM
+      - USE_NIM_LLM=${USE_NIM_LLM:-false}
+      - NIM_LLM_ENDPOINT=https://api.nvidia.com/v1/nim/llama-3-70b
+      # Auth
+      - POLICY0_API_KEY=${POLICY0_API_KEY}
+      # Logging
+      - LOG_LEVEL=info
+    ports:
+      - "3000:3000"
+    volumes:
+      - policy0-data:/app/data
+      - policy0-exports:/app/exports
+      - policy0-uploads:/app/uploads
+    networks:
+      - policy0-internal
+      - policy0-gpu
+    depends_on:
+      isaac-sim:
+        condition: service_healthy
+      isaac-lab:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.5'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # ---------------------------------------------------------------------------
+  # NVIDIA Isaac Sim - Physics Simulation
+  # ---------------------------------------------------------------------------
+  isaac-sim:
+    image: nvcr.io/nvidia/isaac-sim:2024.1
+    container_name: policy0-isaac-sim
+    runtime: nvidia
+    environment:
+      - ACCEPT_EULA=Y
+      - ISAAC_SIM_ENDPOINT=http://0.0.0.0:8211
+      - PYTHONPATH=/isaac-sim
+      - OMNI_KIT_ALLOW_ROOT=1
+    ports:
+      - "8211:8211"
+      - "49152-49200:49152-49200/udp"  # Omniverse streaming
+    volumes:
+      - isaac-sim-cache:/isaac-sim/cache
+      - ./exports:/workspace/exports
+      - ./server/pipeline:/workspace/server/pipeline:ro
+    networks:
+      - policy0-internal
+      - policy0-gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, utility]
+        limits:
+          memory: 16G
+          cpus: '8'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8211/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # NVIDIA Isaac Lab - RL Training
+  # ---------------------------------------------------------------------------
+  isaac-lab:
+    image: nvcr.io/nvidia/isaac-lab:2024.1
+    container_name: policy0-isaac-lab
+    runtime: nvidia
+    environment:
+      - ACCEPT_EULA=Y
+      - ISAAC_LAB_ENDPOINT=http://0.0.0.0:8212
+    ports:
+      - "8212:8212"
+    volumes:
+      - isaac-lab-cache:/isaac-lab/cache
+      - ./exports:/workspace/exports
+    networks:
+      - policy0-internal
+      - policy0-gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, utility]
+        limits:
+          memory: 16G
+          cpus: '8'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8212/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Redis - Task Queue & Caching
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: policy0-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - policy0-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL - Persistent Data (Production)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: policy0-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=policy0
+      - POSTGRES_USER=policy0
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - policy0-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U policy0 -d policy0"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+
+  # ---------------------------------------------------------------------------
+  # Prometheus - Metrics Collection
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: policy0-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - policy0-internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # ---------------------------------------------------------------------------
+  # Grafana - Visualization
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: policy0-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - policy0-internal
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Nginx - Reverse Proxy + SSL Termination
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: policy0-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certs:/etc/nginx/certs:ro
+    networks:
+      - policy0-internal
+    depends_on:
+      - policy0
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# -----------------------------------------------------------------------------
+# GPU Access Configuration (for NVIDIA Container Toolkit)
+# -----------------------------------------------------------------------------
+# Ensure NVIDIA Container Toolkit is installed on host:
+#   distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+#   && curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+#   && curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
+#     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+#     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+#   sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+#   sudo nvidia-ctk runtime configure --runtime=docker
+#   sudo systemctl restart docker

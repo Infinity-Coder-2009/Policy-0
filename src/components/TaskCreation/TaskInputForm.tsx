@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { ROBOT_MODELS, SAMPLE_VIDEOS } from '../../data/mockData';
 import { RobotModel, SampleVideoDemo, TaskInput } from '../../types';
-import { Sparkles, Video, Bot, Sliders, Play, CheckCircle2, Upload, AlertCircle, RefreshCw, Wand2, Shield, Eye, Cpu } from 'lucide-react';
+import { Sparkles, Video, Bot, Sliders, Play, CheckCircle2, Upload, AlertCircle, RefreshCw, Wand2, Shield, Eye, Cpu, ArrowRight, Brain } from 'lucide-react';
 
 interface TaskInputFormProps {
   onGeneratePolicy: (task: TaskInput & { robotName: string; robotDof: number }) => Promise<void>;
   isGenerating: boolean;
   generationStep: string;
+  onUploadVideo?: () => void;
 }
 
-export const TaskInputForm: React.FC<TaskInputFormProps> = ({ onGeneratePolicy, isGenerating, generationStep }) => {
+export const TaskInputForm: React.FC<TaskInputFormProps> = ({ onGeneratePolicy, isGenerating, generationStep, onUploadVideo }) => {
   const [taskTitle, setTaskTitle] = useState('Pick Red Mug & Place on Top Shelf');
   const [taskDescription, setTaskDescription] = useState(
     'Control robot arm to approach the red ceramic mug, establish a compliant parallel grasp without slipping, lift 20cm vertically, clear the safety obstacle, and place aligned on the top shelf surface.'
@@ -85,16 +86,39 @@ export const TaskInputForm: React.FC<TaskInputFormProps> = ({ onGeneratePolicy, 
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-4">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>AI Policy Compiler v3.6</span>
+            <span>AI Policy Compiler v4.0</span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-3">
             Compile Robot Policies from <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-300 bg-clip-text text-transparent">Text & Video</span>
           </h1>
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-            Provide task instructions or video demonstrations. Policy-0 automatically selects optimal routing (Symbolic Code, Neural VLA, or RL), generates MuJoCo simulation environments, and compiles production-ready ONNX & ROS2 policy packages.
+            Upload a task demonstration video or describe the task in text. Our VLM analyzes it, generates a 4K NVIDIA simulation video for your review, then compiles deployable ONNX & ROS2 policies.
           </p>
         </div>
       </div>
+
+      {/* Quick Start: Video Upload Workflow */}
+      {onUploadVideo && (
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-cyan-950/40 to-blue-950/40 border border-cyan-500/20 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+              <Video className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">Video-First Workflow</h3>
+              <p className="text-xs text-slate-400">Upload a video → VLM analyzes → NVIDIA generates 4K sim video → Approve → Compile policy</p>
+            </div>
+          </div>
+          <button
+            onClick={onUploadVideo}
+            className="w-full px-6 py-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Start with Video Upload
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Step 1: Task Description */}

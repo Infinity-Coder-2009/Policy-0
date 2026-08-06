@@ -1,8 +1,8 @@
 import React from 'react';
 import { Logo } from './Logo';
-import { Sparkles, Layers, Cpu, DollarSign, Settings, ShieldCheck, Activity } from 'lucide-react';
+import { Sparkles, Layers, Cpu, DollarSign, Settings, ShieldCheck, Activity, Database } from 'lucide-react';
 
-export type NavTab = 'create' | 'dashboard' | 'simulator' | 'pricing' | 'settings';
+export type NavTab = 'create' | 'dashboard' | 'simulator' | 'pricing' | 'settings' | 'workflow' | 'data';
 
 interface HeaderProps {
   activeTab: NavTab;
@@ -83,6 +83,19 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, policyC
             >
               <DollarSign className="w-4 h-4 text-[#FFB800]" />
               <span className="hidden sm:inline">Sim API Tier</span>
+            </button>
+
+            <button
+              id="nav-data-moat-btn"
+              onClick={() => setActiveTab('data')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'data'
+                  ? 'bg-[#0055FF] text-white shadow-lg shadow-[#0055FF]/20'
+                  : 'text-[#A0A0B8] hover:text-white hover:bg-[#141428]'
+              }`}
+            >
+              <Database className="w-4 h-4 text-violet-400" />
+              <span className="hidden sm:inline">Data Moat</span>
             </button>
 
             <button

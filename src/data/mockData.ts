@@ -1,4 +1,4 @@
-import { RobotModel, SampleVideoDemo, GeneratedPolicy } from '../types';
+import { RobotModel, SampleVideoDemo, GeneratedPolicy, VideoUpload, VLMAnalysisResult, NVIDIAVideoGenResult, ApprovalDecision, OnnxExportResult, DeploymentRun, CategorizedFailure, ImprovementRecommendation, FlywheelStats, PolicyEvolutionRecord, EvolutionOverview } from '../types';
 
 export const ROBOT_MODELS: RobotModel[] = [
   {
@@ -131,6 +131,333 @@ export const SAMPLE_VIDEOS: SampleVideoDemo[] = [
     keySteps: ['Grasp beaker body', 'Translate over cylinder mouth', 'Modulate rotational velocity (0 to 45 deg)', 'Abrupt reverse tilt at target mark']
   }
 ];
+
+export const MOCK_VIDEO_UPLOADS: VideoUpload[] = [
+  {
+    id: 'vid_upload_01',
+    fileName: 'peg_insertion_demo.mp4',
+    fileSizeBytes: 45000000,
+    mimeType: 'video/mp4',
+    durationSec: 14,
+    resolution: '1080p',
+    uploadedAt: '2026-07-31T10:16:32Z',
+    localPath: '/uploads/vid_upload_01.mp4',
+  },
+  {
+    id: 'vid_upload_02',
+    fileName: 'tshirt_folding_demo.mov',
+    fileSizeBytes: 62000000,
+    mimeType: 'video/quicktime',
+    durationSec: 22,
+    resolution: '4K',
+    uploadedAt: '2026-07-31T11:30:00Z',
+    localPath: '/uploads/vid_upload_02.mov',
+  },
+];
+
+export const MOCK_VLM_ANALYSES: VLMAnalysisResult[] = [
+  {
+    id: 'vlm_analysis_01',
+    videoUploadId: 'vid_upload_01',
+    taskTitle: 'Precision Peg Insertion with Impedance Control',
+    taskDescription: 'Pick up cylindrical brass pin and insert into 0.2mm tolerance socket on assembly block.',
+    robotType: 'arm',
+    robotDof: 7,
+    controlMode: 'Cartesian Impedance',
+    observationSpace: ['RGB Camera', 'Joint Encoders', 'EE Force/Torque'],
+    environment: 'MuJoCo',
+    keyframes: [
+      { stage: 'Approach', timestamp: '0:00-0:03', gripperState: 'Open', actionDescription: 'Move end-effector above peg with 5cm offset' },
+      { stage: 'Grasp', timestamp: '0:03-0:06', gripperState: 'Closing', actionDescription: 'Close gripper with 3N force, verify contact' },
+      { stage: 'Align', timestamp: '0:06-0:09', gripperState: 'Gripping', actionDescription: 'Align peg with socket using visual servoing' },
+      { stage: 'Insert', timestamp: '0:09-0:14', gripperState: 'Gripping', actionDescription: 'Insert peg with impedance adaptation, 5N contact threshold' },
+    ],
+    obstacleConstraints: ['Socket overhang 0.5mm', 'Peg tolerance 0.2mm', 'Workspace boundary 0.65m radius'],
+    recommendedControlMode: 'Cartesian Impedance',
+    simToRealTips: [
+      'Apply domain randomization: friction coefficient 0.8-1.2, mass +/-10%',
+      'Add Gaussian noise to joint encoders (sigma=0.001 rad) for sim-to-real transfer',
+      'Calibrate force-torque sensor bias before each deployment run'
+    ],
+    confidence: 0.96,
+    analyzedAt: '2026-07-31T10:20:00Z',
+  },
+];
+
+export const MOCK_NVIDIA_VIDEO_RESULTS: NVIDIAVideoGenResult[] = [
+  {
+    id: 'nvid_vid_01',
+    requestId: 'nvid_job_01',
+    status: 'complete',
+    videoUrl: 'https://storage.nvidia-omniverse.example/jobs/nvid_job_01/output.mp4',
+    thumbnailUrl: 'https://storage.nvidia-omniverse.example/jobs/nvid_job_01/thumb.jpg',
+    resolution: '1080p',
+    durationSec: 10,
+    generatedAt: '2026-07-31T10:25:00Z',
+    nvidiaJobId: 'nvid_job_01',
+  },
+];
+
+export const MOCK_APPROVALS: ApprovalDecision[] = [
+  {
+    id: 'appr_01',
+    videoGenId: 'nvid_job_01',
+    policyId: 'pol_peg_01',
+    decision: 'approved',
+    feedback: '',
+    approvedAt: '2026-07-31T10:30:00Z',
+    rejectedAt: null,
+  },
+];
+
+export const MOCK_ONNX_EXPORTS: OnnxExportResult[] = [
+  {
+    id: 'onnx_01',
+    policyId: 'pol_peg_01',
+    onnxModelUrl: '/exports/onnx/pol_peg_01_policy.onnx',
+    onnxModelSizeBytes: 1420000,
+    inputShape: '1 x 24',
+    outputShape: '1 x 6',
+    opsetVersion: 17,
+    latencyMs: 0.85,
+    exportedAt: '2026-07-31T10:35:00Z',
+    exportFormat: 'onnx',
+  },
+];
+
+export const MOCK_DEPLOYMENT_RUNS: DeploymentRun[] = [
+  {
+    id: 'run_01',
+    policyId: 'pol_peg_01',
+    robotModel: 'Franka Emika Panda',
+    taskTitle: 'Peg Insertion with Impedance Control',
+    outcome: 'failure',
+    successScore: 22,
+    durationSec: 8.4,
+    numAttempts: 2,
+    errorSignals: [
+      { type: 'contact_jam', severity: 'high', description: 'Insertion wedge detected, contact force exceeded 14N threshold', occurredAtSec: 4.2 },
+      { type: 'stability_oscillation', severity: 'medium', description: 'EE oscillated ±4mm before abort', occurredAtSec: 3.6 },
+    ],
+    environmentFingerprint: 'a1b2c3d4e5f60718',
+    deployedAt: '2026-07-31T11:02:00Z',
+    source: 'real_world',
+  },
+  {
+    id: 'run_02',
+    policyId: 'pol_peg_01',
+    robotModel: 'Franka Emika Panda',
+    taskTitle: 'Peg Insertion with Impedance Control',
+    outcome: 'failure',
+    successScore: 41,
+    durationSec: 9.1,
+    numAttempts: 1,
+    errorSignals: [
+      { type: 'grasp_slip', severity: 'high', description: 'Object slid out of gripper during lift, tactile signal lost', occurredAtSec: 1.8 },
+    ],
+    environmentFingerprint: 'a1b2c3d4e5f60718',
+    deployedAt: '2026-07-31T11:14:00Z',
+    source: 'real_world',
+  },
+  {
+    id: 'run_03',
+    policyId: 'pol_peg_01',
+    robotModel: 'Franka Emika Panda',
+    taskTitle: 'Peg Insertion with Impedance Control',
+    outcome: 'success',
+    successScore: 96,
+    durationSec: 6.2,
+    numAttempts: 1,
+    errorSignals: [],
+    environmentFingerprint: 'a1b2c3d4e5f60718',
+    deployedAt: '2026-07-31T11:30:00Z',
+    source: 'real_world',
+  },
+  {
+    id: 'run_04',
+    policyId: 'pol_humanoid_walk_02',
+    robotModel: 'Unitree H1 Humanoid',
+    taskTitle: 'Unitree H1 Dynamic Walking & Obstacle Avoidance',
+    outcome: 'failure',
+    successScore: 18,
+    durationSec: 11.7,
+    numAttempts: 3,
+    errorSignals: [
+      { type: 'stability_oscillation', severity: 'critical', description: 'Upper body pitch oscillation diverged, fall detected at t=9.5s', occurredAtSec: 9.5 },
+      { type: 'navigation_failure', severity: 'medium', description: 'Localization drift, path re-planned 4 times', occurredAtSec: 5.0 },
+    ],
+    environmentFingerprint: '9f8e7d6c5b4a3210',
+    deployedAt: '2026-07-31T12:05:00Z',
+    source: 'real_world',
+  },
+  {
+    id: 'run_05',
+    policyId: 'pol_humanoid_walk_02',
+    robotModel: 'Unitree H1 Humanoid',
+    taskTitle: 'Unitree H1 Dynamic Walking & Obstacle Avoidance',
+    outcome: 'success',
+    successScore: 92,
+    durationSec: 14.3,
+    numAttempts: 1,
+    errorSignals: [],
+    environmentFingerprint: '9f8e7d6c5b4a3210',
+    deployedAt: '2026-07-31T12:20:00Z',
+    source: 'sim',
+  },
+];
+
+export const MOCK_CATEGORIZED_FAILURES: CategorizedFailure[] = [
+  {
+    id: 'fail_01',
+    runId: 'run_01',
+    policyId: 'pol_peg_01',
+    taskTitle: 'Peg Insertion with Impedance Control',
+    robotModel: 'Franka Emika Panda',
+    category: 'contact_jam',
+    severity: 'critical',
+    description: 'Peg wedged during insertion with force spike; lateral stiffness too high to self-align.',
+    rootCause: 'Insertion velocity too high with rigid alignment; no compliance search motion enabled.',
+    recommendedAction: 'Add 1mm sinusoidal search dithering during insertion and lower insertion velocity to 0.006 m/s.',
+    confidence: 0.94,
+    classifiedAt: '2026-07-31T11:10:00Z',
+    classifier: 'llm',
+  },
+  {
+    id: 'fail_02',
+    runId: 'run_02',
+    policyId: 'pol_peg_01',
+    taskTitle: 'Peg Insertion with Impedance Control',
+    robotModel: 'Franka Emika Panda',
+    category: 'grasp_slip',
+    severity: 'high',
+    description: 'Object slipped from gripper during lift due to insufficient grasp force.',
+    rootCause: 'Insufficient grip force and no tactile contact verification before lift.',
+    recommendedAction: 'Increase grip force to 100% max with 2s hold and verify tactile contact before lift.',
+    confidence: 0.97,
+    classifiedAt: '2026-07-31T11:20:00Z',
+    classifier: 'llm',
+  },
+  {
+    id: 'fail_03',
+    runId: 'run_04',
+    policyId: 'pol_humanoid_walk_02',
+    taskTitle: 'Unitree H1 Dynamic Walking & Obstacle Avoidance',
+    robotModel: 'Unitree H1 Humanoid',
+    category: 'stability_oscillation',
+    severity: 'critical',
+    description: 'Pitch oscillation diverged causing fall; ankle torque gains too low for uneven terrain.',
+    rootCause: 'Impedance gains too aggressive relative to payload dynamics; no disturbance rejection.',
+    recommendedAction: 'Reduce upper-body Kp 25%, raise ankle Kd 15%, add low-pass filter on IMU pitch feedback.',
+    confidence: 0.91,
+    classifiedAt: '2026-07-31T12:10:00Z',
+    classifier: 'rules',
+  },
+];
+
+export const MOCK_IMPROVEMENTS: ImprovementRecommendation[] = [
+  {
+    id: 'imp_01',
+    policyId: 'pol_peg_01',
+    policyTitle: 'Peg Insertion with Impedance Control',
+    failureCategory: 'contact_jam',
+    title: 'Add compliance dithering during insertion',
+    description: 'Improvement derived from contact_jam failures. Add 1mm sinusoidal search dithering during insertion.',
+    changes: [
+      { target: 'Trajectory', parameter: 'Insertion Velocity', from: '0.012 m/s', to: '0.006 m/s' },
+      { target: 'Compliance', parameter: 'Search Dither', from: 'None', to: '1 mm sinusoidal' },
+      { target: 'Impedance', parameter: 'Lateral Kp', from: '600 N/m', to: '150 N/m' },
+    ],
+    estimatedGainPct: 15,
+    priority: 'critical',
+    status: 'pending',
+    createdAt: '2026-07-31T11:25:00Z',
+    appliedAt: null,
+  },
+  {
+    id: 'imp_02',
+    policyId: 'pol_peg_01',
+    policyTitle: 'Peg Insertion with Impedance Control',
+    failureCategory: 'grasp_slip',
+    title: 'Increase grip force & add tactile contact trigger',
+    description: 'Improvement derived from grasp_slip failures. Verify tactile contact before lift.',
+    changes: [
+      { target: 'Gripper', parameter: 'Grip Force', from: '80% max', to: '100% max (2s hold)' },
+      { target: 'State Machine', parameter: 'Lift Trigger', from: 'Timed lift after grasp', to: 'Tactile contact verified' },
+    ],
+    estimatedGainPct: 12,
+    priority: 'high',
+    status: 'applied',
+    createdAt: '2026-07-31T11:26:00Z',
+    appliedAt: '2026-07-31T11:40:00Z',
+  },
+  {
+    id: 'imp_03',
+    policyId: 'pol_humanoid_walk_02',
+    policyTitle: 'Unitree H1 Dynamic Walking & Obstacle Avoidance',
+    failureCategory: 'stability_oscillation',
+    title: 'Tune impedance gains for stable gait convergence',
+    description: 'Improvement derived from stability_oscillation failures on locomotion policy.',
+    changes: [
+      { target: 'Impedance', parameter: 'Upper-body Kp', from: '600 N/m', to: '450 N/m' },
+      { target: 'Impedance', parameter: 'Ankle Kd', from: '2*sqrt(Kp)', to: '2.3*sqrt(Kp)' },
+      { target: 'Feedback', parameter: 'IMU Pitch Filter', from: 'None', to: 'Low-pass @ 25 Hz' },
+    ],
+    estimatedGainPct: 14,
+    priority: 'high',
+    status: 'pending',
+    createdAt: '2026-07-31T12:15:00Z',
+    appliedAt: null,
+  },
+];
+
+export const MOCK_FLYWHEEL_STATS: FlywheelStats = {
+  totalRuns: 5,
+  successRuns: 2,
+  failureRuns: 3,
+  passRatePct: 40.0,
+  totalFailures: 3,
+  categorizedFailures: 3,
+  uncategorizedFailures: 0,
+  improvementsGenerated: 3,
+  improvementsApplied: 1,
+  topFailureCategories: [
+    { category: 'contact_jam', count: 1 },
+    { category: 'grasp_slip', count: 1 },
+    { category: 'stability_oscillation', count: 1 },
+  ],
+};
+
+export const MOCK_EVOLUTION_RECORDS: PolicyEvolutionRecord[] = [
+  {
+    id: 'evol_01',
+    policyId: 'pol_peg_01',
+    policyTitle: 'Peg Insertion with Impedance Control',
+    version: 1,
+    appliedImprovementIds: ['imp_02'],
+    appliedImprovementTitles: ['Increase grip force & add tactile contact trigger'],
+    changesApplied: [
+      { target: 'Gripper', parameter: 'Grip Force', from: '80% max', to: '100% max (2s hold)' },
+      { target: 'State Machine', parameter: 'Lift Trigger', from: 'Timed lift after grasp', to: 'Tactile contact verified' },
+    ],
+    successRateBeforePct: 78.4,
+    projectedSuccessRatePct: 90.6,
+    measuredSuccessRatePct: 89.2,
+    verified: true,
+    verificationJobId: 'isaac_sim_verify_001',
+    createdAt: '2026-07-31T11:40:00Z',
+  },
+];
+
+export const MOCK_EVOLUTION_OVERVIEW: EvolutionOverview = {
+  policiesEvolved: 1,
+  totalVersions: 1,
+  latestVersionCount: 1,
+  improvementsApplied: 1,
+  avgGainPct: 10.8,
+  bestGainPct: 10.8,
+  verifiedCount: 1,
+  measuredCount: 1,
+};
 
 export const INITIAL_POLICIES: GeneratedPolicy[] = [
   {

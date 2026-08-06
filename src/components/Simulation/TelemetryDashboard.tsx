@@ -235,4 +235,5 @@ export const TelemetryDashboard: React.FC<TelemetryDashboardProps> = ({ policy }
     </div>
   );
 };
+export default TelemetryDashboard;
 

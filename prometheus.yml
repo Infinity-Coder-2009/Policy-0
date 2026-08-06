@@ -1,0 +1,62 @@
+# Prometheus configuration for Policy-0
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'policy0'
+    environment: 'production'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+  # Policy-0 Application metrics
+  - job_name: 'policy0-app'
+    static_configs:
+      - targets: ['policy0:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # Isaac Sim metrics
+  - job_name: 'isaac-sim'
+    static_configs:
+      - targets: ['isaac-sim:8211']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Isaac Lab metrics
+  - job_name: 'isaac-lab'
+    static_configs:
+      - targets: ['isaac-lab:8212']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Redis metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # PostgreSQL metrics (via postgres_exporter)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # Node exporter for host metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['host.docker.internal:9100']
+    scrape_interval: 15s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

@@ -174,3 +174,4 @@ ${policy.ros2NodeCode}
     </div>
   );
 };
+export default PolicyViewModal;

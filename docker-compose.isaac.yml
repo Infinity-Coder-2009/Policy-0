@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  isaac-sim:
+    image: nvcr.io/nvidia/isaac-sim:2024.1
+    container_name: policy0-isaac-sim
+    runtime: nvidia
+    environment:
+      - ACCEPT_EULA=Y
+      - ISAAC_SIM_ENDPOINT=http://0.0.0.0:8211
+      - PYTHONPATH=/isaac-sim
+    ports:
+      - "8211:8211"
+    volumes:
+      - ./isaac-sim-cache:/isaac-sim/cache
+      - ./exports:/workspace/exports
+      - ./server/pipeline:/workspace/server/pipeline:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8211/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  isaac-lab:
+    image: nvcr.io/nvidia/isaac-lab:2024.1
+    container_name: policy0-isaac-lab
+    runtime: nvidia
+    environment:
+      - ACCEPT_EULA=Y
+      - ISAAC_LAB_ENDPOINT=http://0.0.0.0:8212
+    ports:
+      - "8212:8212"
+    volumes:
+      - ./isaac-lab-cache:/isaac-lab/cache
+      - ./exports:/workspace/exports
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8212/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  isaac-sim-cache:
+  isaac-lab-cache:
