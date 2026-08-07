@@ -8,7 +8,7 @@
     "dev": "tsx server.ts",
     "build": "echo 'Using pre-built dist'",
     "build:frontend": "vite build",
-    "build:server": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build:server": "node scripts/build-server.cjs",
     "build:prod": "npm run build:frontend && npm run build:server",
     "start": "node --max-old-space-size=400 dist/server.cjs",
     "preview": "vite preview",

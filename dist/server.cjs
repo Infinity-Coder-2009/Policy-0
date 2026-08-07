@@ -1,3 +1,5 @@
+var __filename = process.cwd() + '/server.cjs';
+var __dirname = process.cwd();
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -1995,7 +1997,6 @@ module.exports = __toCommonJS(server_exports);
 var import_express = __toESM(require("express"), 1);
 var import_path9 = __toESM(require("path"), 1);
 var import_fs9 = __toESM(require("fs"), 1);
-var import_url2 = require("url");
 var import_vite = require("vite");
 var import_genai4 = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
@@ -2043,7 +2044,13 @@ var generalRateLimiter = (0, import_express_rate_limit.default)({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || "unknown",
+  keyGenerator: (req) => {
+    const forwarded = req.headers["x-forwarded-for"];
+    if (forwarded) {
+      return typeof forwarded === "string" ? forwarded.split(",")[0].trim() : forwarded[0];
+    }
+    return req.socket?.remoteAddress || "unknown";
+  },
   handler: (req, res) => {
     logger.warn({ ip: req.ip, path: req.path }, "Rate limit exceeded");
     res.status(429).json({
@@ -2059,13 +2066,25 @@ var strictRateLimiter = (0, import_express_rate_limit.default)({
   message: { success: false, error: "Too many requests, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || "unknown"
+  keyGenerator: (req) => {
+    const forwarded = req.headers["x-forwarded-for"];
+    if (forwarded) {
+      return typeof forwarded === "string" ? forwarded.split(",")[0].trim() : forwarded[0];
+    }
+    return req.socket?.remoteAddress || "unknown";
+  }
 });
 var uploadRateLimiter = (0, import_express_rate_limit.default)({
   windowMs: 60 * 1e3,
   max: 10,
   message: { success: false, error: "Too many uploads, please try again later." },
-  keyGenerator: (req) => req.ip || "unknown"
+  keyGenerator: (req) => {
+    const forwarded = req.headers["x-forwarded-for"];
+    if (forwarded) {
+      return typeof forwarded === "string" ? forwarded.split(",")[0].trim() : forwarded[0];
+    }
+    return req.socket?.remoteAddress || "unknown";
+  }
 });
 var schemas = {
   // Video upload
@@ -4560,10 +4579,6 @@ var upload = (0, import_multer.default)({
 // server/pipeline/videoUploader.ts
 var import_path7 = __toESM(require("path"), 1);
 var import_fs7 = __toESM(require("fs"), 1);
-var import_url = require("url");
-var import_meta = {};
-var __filename = (0, import_url.fileURLToPath)(import_meta.url);
-var __dirname = import_path7.default.dirname(__filename);
 var uploadsDir = import_path7.default.join(process.cwd(), "uploads");
 if (!import_fs7.default.existsSync(uploadsDir)) {
   import_fs7.default.mkdirSync(uploadsDir, { recursive: true });
@@ -5587,10 +5602,9 @@ function getEvolutionOverview() {
 
 // server.ts
 init_errors();
-var import_meta2 = {};
 import_dotenv.default.config();
-var __filename2 = typeof import_meta2 !== "undefined" && import_meta2.url ? (0, import_url2.fileURLToPath)(import_meta2.url) : global.__filename || "";
-var __dirname2 = __filename2 ? import_path9.default.dirname(__filename2) : global.__dirname || "";
+var __filename = global.__filename || "";
+var __dirname = global.__dirname || "";
 var app = (0, import_express.default)();
 var PORT = parseInt(process.env.PORT || "2009", 10);
 app.use(corsMiddleware);

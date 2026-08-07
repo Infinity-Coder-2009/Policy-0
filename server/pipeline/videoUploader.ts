@@ -1,11 +1,8 @@
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 import { VideoUpload } from '../../src/types';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+// Use process.cwd() for uploads directory (works in both ESM and CJS)
 const uploadsDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });

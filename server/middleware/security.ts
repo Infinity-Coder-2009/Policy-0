@@ -43,7 +43,14 @@ export const generalRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || 'unknown',
+  keyGenerator: (req) => {
+    // Simple IP-based rate limiting without IPv6 validation issues
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      return typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : forwarded[0];
+    }
+    return req.socket?.remoteAddress || 'unknown';
+  },
   handler: (req, res) => {
     logger.warn({ ip: req.ip, path: req.path }, 'Rate limit exceeded');
     res.status(429).json({
@@ -60,14 +67,26 @@ export const strictRateLimiter = rateLimit({
   message: { success: false, error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || 'unknown',
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      return typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : forwarded[0];
+    }
+    return req.socket?.remoteAddress || 'unknown';
+  },
 });
 
 export const uploadRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
   message: { success: false, error: 'Too many uploads, please try again later.' },
-  keyGenerator: (req) => req.ip || 'unknown',
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      return typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : forwarded[0];
+    }
+    return req.socket?.remoteAddress || 'unknown';
+  },
 });
 
 // ===== Zod Validation Schemas =====
