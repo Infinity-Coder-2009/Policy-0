@@ -16,7 +16,7 @@ node_modules/
 # =============================================================================
 # Build Output
 # =============================================================================
-dist/
+# dist/ is committed for pre-built deployments (Render free tier)
 build/
 .vercel/
 .render/
