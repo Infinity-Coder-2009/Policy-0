@@ -66,8 +66,10 @@ import { NotFoundError, ValidationError, AuthenticationError, ConflictError } fr
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// __filename and __dirname are available in CJS, but not in ESM
+// When bundled to CJS by esbuild, import.meta.url is undefined
+const __filename = typeof import.meta !== 'undefined' && import.meta.url ? fileURLToPath(import.meta.url) : global.__filename || '';
+const __dirname = __filename ? path.dirname(__filename) : global.__dirname || '';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '2009', 10);

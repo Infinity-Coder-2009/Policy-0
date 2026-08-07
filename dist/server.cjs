@@ -5589,8 +5589,8 @@ function getEvolutionOverview() {
 init_errors();
 var import_meta2 = {};
 import_dotenv.default.config();
-var __filename2 = (0, import_url2.fileURLToPath)(import_meta2.url);
-var __dirname2 = import_path9.default.dirname(__filename2);
+var __filename2 = typeof import_meta2 !== "undefined" && import_meta2.url ? (0, import_url2.fileURLToPath)(import_meta2.url) : global.__filename || "";
+var __dirname2 = __filename2 ? import_path9.default.dirname(__filename2) : global.__dirname || "";
 var app = (0, import_express.default)();
 var PORT = parseInt(process.env.PORT || "2009", 10);
 app.use(corsMiddleware);
