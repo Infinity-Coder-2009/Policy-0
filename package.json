@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "npm run build:frontend && npm run build:server",
-    "build:frontend": "npx vite build",
-    "build:server": "npx esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build:frontend": "./node_modules/.bin/vite build",
+    "build:server": "./node_modules/.bin/esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.cjs",
