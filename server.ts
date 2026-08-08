@@ -117,14 +117,12 @@ app.post('/api/auth/register', async (req, res) => {
     if (typeof password !== 'string' || password.length < 8) {
       throw new ValidationError('password must be at least 8 characters');
     }
-    if (await countUsers() > 0) {
-      throw new ConflictError('Registration is closed. Contact an administrator to create accounts.');
-    }
+    // Registration is open for all users
     if (await findUserByEmail(email)) {
       throw new ConflictError('A user with this email already exists');
     }
     const passwordHash = await hashPassword(password);
-    const user = await createUser({ email, passwordHash, role: 'admin', name });
+    const user = await createUser({ email, passwordHash, role: 'operator', name });
     res.status(201).json({
       success: true,
       user: { id: user.id, email: user.email, role: user.role, name: user.name },
