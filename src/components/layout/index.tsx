@@ -5,7 +5,7 @@
  */
 
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../../stores/authStore';
+import { useUser, UserButton } from '@clerk/clerk-react';
 import { useUIStore } from '../../stores/uiStore';
 import {
   LayoutDashboard,
@@ -15,8 +15,6 @@ import {
   Settings,
   Activity,
   Menu,
-  LogOut,
-  User,
   Shield,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -32,7 +30,7 @@ const navItems = [
 ];
 
 export function Header() {
-  const { user, logout } = useAuthStore();
+  const { user } = useUser();
   const { toggleSidebar } = useUIStore();
 
   return (
@@ -54,25 +52,14 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-[#141428] border border-[#2A2A4A] flex items-center justify-center">
-              <User className="w-4 h-4 text-[#A0A0B8]" />
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-medium text-white">{user?.email}</p>
-              <div className="flex items-center gap-1">
-                <Shield className="w-3 h-3 text-[#0055FF]" />
-                <span className="text-xs text-[#A0A0B8] capitalize">{user?.role}</span>
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={logout}
-            className="p-2 rounded-xl hover:bg-[#141428] text-[#A0A0B8] hover:text-[#FF3355] transition-colors"
-            title="Logout"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: 'w-8 h-8',
+              },
+            }}
+            afterSignOutUrl="/login"
+          />
         </div>
       </div>
     </header>
@@ -81,11 +68,11 @@ export function Header() {
 
 export function Sidebar() {
   const { sidebarOpen } = useUIStore();
-  const { user } = useAuthStore();
+  const { user } = useUser();
   const location = useLocation();
 
   const filteredNavItems = navItems.filter(
-    (item) => !item.adminOnly || user?.role === 'admin'
+    (item) => !item.adminOnly || user?.publicMetadata?.role === 'admin'
   );
 
   return (

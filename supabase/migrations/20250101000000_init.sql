@@ -1,225 +1,177 @@
 -- =============================================================================
--- Policy-0 Database Schema
--- =============================================================================
--- Initial migration for PostgreSQL (Supabase)
--- Generated from prisma/schema.prisma
+-- Policy-0 Database Schema for Supabase
 -- =============================================================================
 
--- ===== Enums =====
-CREATE TYPE "Role" AS ENUM ('ADMIN', 'OPERATOR', 'VIEWER');
-CREATE TYPE "Mode" AS ENUM ('SIMULATED', 'REAL');
-CREATE TYPE "RunSource" AS ENUM ('SIMULATED', 'ISAAC_SIM', 'ISAAC_LAB', 'OSMO', 'REAL_WORLD');
-CREATE TYPE "RunStatus" AS ENUM ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED');
-CREATE TYPE "FailureCategory" AS ENUM (
-  'CONTACT_JAM', 'IK_SINGULARITY', 'COLLISION', 'TIMEOUT', 'JOINT_LIMIT',
-  'PERCEPTION', 'PLANNING', 'SIMULATION_ARTIFACT', 'UNKNOWN'
-);
-CREATE TYPE "Priority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- ===== Users =====
-CREATE TABLE "users" (
-  id            TEXT PRIMARY KEY,
-  email         TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  role          "Role" NOT NULL DEFAULT 'OPERATOR',
-  name          TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_users_email ON "users"(email);
-
--- ===== Refresh Tokens =====
-CREATE TABLE "refresh_tokens" (
-  id         TEXT PRIMARY KEY,
-  token_hash TEXT UNIQUE NOT NULL,
-  user_id    TEXT NOT NULL REFERENCES "users"(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  expires_at TIMESTAMPTZ NOT NULL,
-  revoked    BOOLEAN NOT NULL DEFAULT FALSE
-);
-
-CREATE INDEX idx_refresh_tokens_user_id ON "refresh_tokens"(user_id);
-CREATE INDEX idx_refresh_tokens_token_hash ON "refresh_tokens"(token_hash);
-
--- ===== API Keys =====
-CREATE TABLE "api_keys" (
-  id         TEXT PRIMARY KEY,
-  key_hash   TEXT UNIQUE NOT NULL,
-  name       TEXT NOT NULL,
-  user_id    TEXT NOT NULL REFERENCES "users"(id) ON DELETE CASCADE,
-  last_used  TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  expires_at TIMESTAMPTZ
-);
-
-CREATE INDEX idx_api_keys_user_id ON "api_keys"(user_id);
-CREATE INDEX idx_api_keys_key_hash ON "api_keys"(key_hash);
-
--- ===== Organizations =====
-CREATE TABLE "organizations" (
-  id         TEXT PRIMARY KEY,
-  name       TEXT UNIQUE NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ===== Robots =====
-CREATE TABLE "robots" (
-  id           TEXT PRIMARY KEY,
-  name         TEXT UNIQUE NOT NULL,
-  type         TEXT NOT NULL,
-  manufacturer TEXT NOT NULL,
-  dof          INTEGER NOT NULL,
-  payload_kg   REAL NOT NULL,
-  reach_mm     INTEGER NOT NULL,
-  description  TEXT,
-  capabilities TEXT[] NOT NULL DEFAULT '{}',
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_robots_name ON "robots"(name);
-
--- ===== Policies =====
-CREATE TABLE "policies" (
-  id         TEXT PRIMARY KEY,
-  policy     JSONB NOT NULL,
-  mode       "Mode" NOT NULL DEFAULT 'SIMULATED',
+-- ===== Users Table =====
+-- Managed by Clerk, but we store additional metadata
+CREATE TABLE IF NOT EXISTS public.users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  clerk_user_id TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  role TEXT NOT NULL DEFAULT 'operator' CHECK (role IN ('admin', 'operator', 'viewer')),
+  name TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_policies_mode ON "policies"(mode);
-CREATE INDEX idx_policies_created_at ON "policies"(created_at);
+CREATE INDEX idx_users_clerk_id ON public.users(clerk_user_id);
+CREATE INDEX idx_users_email ON public.users(email);
 
--- ===== Policy Versions =====
-CREATE TABLE "policy_versions" (
-  id                    TEXT PRIMARY KEY,
-  policy_id             TEXT NOT NULL REFERENCES "policies"(id) ON DELETE CASCADE,
-  version               INTEGER NOT NULL,
-  policy_json           JSONB NOT NULL,
-  verified              BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- ===== Policies Table =====
+CREATE TABLE IF NOT EXISTS public.policies (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title TEXT NOT NULL,
+  description TEXT,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  mode TEXT NOT NULL DEFAULT 'SIMULATED' CHECK (mode IN ('SIMULATED', 'REAL')),
+  robot_type TEXT,
+  task_description TEXT,
+  control_mode TEXT,
+  observation_space JSONB,
+  domain_randomization BOOLEAN DEFAULT FALSE,
+  success_rate_pct REAL,
+  policy_data JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_policy_versions_policy_id ON "policy_versions"(policy_id);
-CREATE UNIQUE INDEX idx_policy_versions_policy_version ON "policy_versions"(policy_id, version);
+CREATE INDEX idx_policies_user_id ON public.users(id);
+CREATE INDEX idx_policies_mode ON public.policies(mode);
 
--- ===== Deployment Runs =====
-CREATE TABLE "deployment_runs" (
-  id                TEXT PRIMARY KEY,
-  policy_version_id TEXT REFERENCES "policy_versions"(id) ON DELETE SET NULL,
-  source            "RunSource" NOT NULL DEFAULT 'SIMULATED',
-  status            "RunStatus" NOT NULL DEFAULT 'PENDING',
-  success           BOOLEAN,
-  metrics           JSONB,
-  error             TEXT,
-  started_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  completed_at      TIMESTAMPTZ
+-- ===== Policy Versions Table =====
+CREATE TABLE IF NOT EXISTS public.policy_versions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  policy_id UUID NOT NULL REFERENCES public.policies(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  changes JSONB,
+  success_rate_before REAL,
+  success_rate_after REAL,
+  measured_success_rate REAL,
+  projected_success_rate REAL,
+  verified BOOLEAN DEFAULT FALSE,
+  verification_job_id TEXT,
+  policy_data JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_deployment_runs_policy_version_id ON "deployment_runs"(policy_version_id);
-CREATE INDEX idx_deployment_runs_status ON "deployment_runs"(status);
-CREATE INDEX idx_deployment_runs_source ON "deployment_runs"(source);
+CREATE INDEX idx_policy_versions_policy_id ON public.policy_versions(policy_id);
+CREATE UNIQUE INDEX idx_policy_versions_unique ON public.policy_versions(policy_id, version);
 
--- ===== Categorized Failures =====
-CREATE TABLE "categorized_failures" (
-  id          TEXT PRIMARY KEY,
-  run_id      TEXT NOT NULL REFERENCES "deployment_runs"(id) ON DELETE CASCADE,
-  category    "FailureCategory" NOT NULL,
-  description TEXT NOT NULL,
-  count       INTEGER NOT NULL DEFAULT 1,
-  first_seen  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  last_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_categorized_failures_run_id ON "categorized_failures"(run_id);
-CREATE INDEX idx_categorized_failures_category ON "categorized_failures"(category);
-
--- ===== Improvement Recommendations =====
-CREATE TABLE "improvement_recommendations" (
-  id              TEXT PRIMARY KEY,
-  run_id          TEXT REFERENCES "deployment_runs"(id) ON DELETE SET NULL,
-  title           TEXT NOT NULL,
-  description     TEXT NOT NULL,
-  priority        "Priority" NOT NULL DEFAULT 'MEDIUM',
-  category        TEXT NOT NULL,
-  estimated_gain  REAL,
-  applied_at      TIMESTAMPTZ,
-  applied_version INTEGER,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_improvements_run_id ON "improvement_recommendations"(run_id);
-CREATE INDEX idx_improvements_priority ON "improvement_recommendations"(priority);
-CREATE INDEX idx_improvements_applied ON "improvement_recommendations"(applied_at);
-
--- ===== NVIDIA Jobs =====
-CREATE TABLE "nvidia_jobs" (
-  id           TEXT PRIMARY KEY,
-  job_id       TEXT UNIQUE NOT NULL,
-  service      TEXT NOT NULL,
-  status       TEXT NOT NULL DEFAULT 'PENDING',
-  payload      JSONB,
-  result       JSONB,
-  error        TEXT,
-  started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+-- ===== Deployment Runs Table =====
+CREATE TABLE IF NOT EXISTS public.deployment_runs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  policy_id UUID REFERENCES public.policies(id) ON DELETE SET NULL,
+  policy_version_id UUID REFERENCES public.policy_versions(id) ON DELETE SET NULL,
+  source TEXT NOT NULL DEFAULT 'SIMULATED' CHECK (source IN ('SIMULATED', 'ISAAC_SIM', 'ISAAC_LAB', 'OSMO', 'REAL_WORLD')),
+  status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED')),
+  success BOOLEAN,
+  metrics JSONB,
+  error TEXT,
+  environment JSONB,
+  duration_sec REAL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   completed_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_nvidia_jobs_job_id ON "nvidia_jobs"(job_id);
-CREATE INDEX idx_nvidia_jobs_service ON "nvidia_jobs"(service);
-CREATE INDEX idx_nvidia_jobs_status ON "nvidia_jobs"(status);
+CREATE INDEX idx_deployment_runs_policy_id ON public.deployment_runs(policy_id);
+CREATE INDEX idx_deployment_runs_status ON public.deployment_runs(status);
+CREATE INDEX idx_deployment_runs_source ON public.deployment_runs(source);
 
--- ===== Audit Log =====
-CREATE TABLE "audit_logs" (
-  id          TEXT PRIMARY KEY,
-  user_id     TEXT REFERENCES "users"(id) ON DELETE SET NULL,
-  user_email  TEXT,
-  user_role   "Role",
-  action      TEXT NOT NULL,
-  resource    TEXT NOT NULL,
-  resource_id TEXT,
-  method      TEXT NOT NULL,
-  path        TEXT NOT NULL,
-  status_code INTEGER NOT NULL,
-  ip          TEXT,
-  user_agent  TEXT,
-  metadata    JSONB,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- ===== Categorized Failures Table =====
+CREATE TABLE IF NOT EXISTS public.categorized_failures (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  run_id UUID NOT NULL REFERENCES public.deployment_runs(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  description TEXT NOT NULL,
+  severity TEXT DEFAULT 'medium',
+  count INTEGER DEFAULT 1,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_audit_logs_user_id ON "audit_logs"(user_id);
-CREATE INDEX idx_audit_logs_action ON "audit_logs"(action);
-CREATE INDEX idx_audit_logs_resource ON "audit_logs"(resource);
-CREATE INDEX idx_audit_logs_created_at ON "audit_logs"(created_at);
+CREATE INDEX idx_categorized_failures_run_id ON public.categorized_failures(run_id);
+CREATE INDEX idx_categorized_failures_category ON public.categorized_failures(category);
 
--- ===== Row Level Security (RLS) =====
-ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "refresh_tokens" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "api_keys" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "policies" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "policy_versions" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "deployment_runs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "categorized_failures" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "improvement_recommendations" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "nvidia_jobs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "audit_logs" ENABLE ROW LEVEL SECURITY;
+-- ===== Improvement Recommendations Table =====
+CREATE TABLE IF NOT EXISTS public.improvement_recommendations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  policy_id UUID REFERENCES public.policies(id) ON DELETE CASCADE,
+  run_id UUID REFERENCES public.deployment_runs(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category TEXT NOT NULL,
+  priority TEXT DEFAULT 'MEDIUM' CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+  changes JSONB,
+  estimated_gain REAL,
+  status TEXT DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPLIED', 'DISMISSED')),
+  applied_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
--- ===== Updated At Trigger =====
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+CREATE INDEX idx_improvements_policy_id ON public.improvement_recommendations(policy_id);
+CREATE INDEX idx_improvements_status ON public.improvement_recommendations(status);
+CREATE INDEX idx_improvements_priority ON public.improvement_recommendations(priority);
+
+-- ===== NVIDIA Jobs Table =====
+CREATE TABLE IF NOT EXISTS public.nvidia_jobs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  job_id TEXT UNIQUE NOT NULL,
+  service TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING',
+  payload JSONB,
+  result JSONB,
+  error TEXT,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_nvidia_jobs_job_id ON public.nvidia_jobs(job_id);
+CREATE INDEX idx_nvidia_jobs_service ON public.nvidia_jobs(service);
+CREATE INDEX idx_nvidia_jobs_status ON public.nvidia_jobs(status);
+
+-- ===== Row Level Security =====
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.policies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.policy_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deployment_runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categorized_failures ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.improvement_recommendations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.nvidia_jobs ENABLE ROW LEVEL SECURITY;
+
+-- Users can read their own data
+CREATE POLICY users_read_own ON public.users FOR SELECT USING (true);
+CREATE POLICY users_insert_own ON public.users FOR INSERT WITH CHECK (true);
+
+-- Policies: users can read all, insert/update/delete own
+CREATE POLICY policies_read_all ON public.policies FOR SELECT USING (true);
+CREATE POLICY policies_insert_own ON public.policies FOR INSERT WITH CHECK (true);
+CREATE POLICY policies_update_own ON public.policies FOR UPDATE USING (true);
+CREATE POLICY policies_delete_own ON public.policies FOR DELETE USING (true);
+
+-- Similar policies for other tables
+CREATE POLICY deployment_runs_read ON public.deployment_runs FOR SELECT USING (true);
+CREATE POLICY deployment_runs_insert ON public.deployment_runs FOR INSERT WITH CHECK (true);
+
+CREATE POLICY failures_read ON public.categorized_failures FOR SELECT USING (true);
+CREATE POLICY failures_insert ON public.categorized_failures FOR INSERT WITH CHECK (true);
+
+CREATE POLICY improvements_read ON public.improvement_recommendations FOR SELECT USING (true);
+CREATE POLICY improvements_insert ON public.improvement_recommendations FOR INSERT WITH CHECK (true);
+
+CREATE POLICY nvidia_jobs_read ON public.nvidia_jobs FOR SELECT USING (true);
+CREATE POLICY nvidia_jobs_insert ON public.nvidia_jobs FOR INSERT WITH CHECK (true);
+
+-- ===== Triggers for updated_at =====
+CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON "users"
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_robots_updated_at BEFORE UPDATE ON "robots"
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_policies_updated_at BEFORE UPDATE ON "policies"
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_policies_updated_at BEFORE UPDATE ON public.policies FOR EACH ROW EXECUTE FUNCTION update_updated_at();
