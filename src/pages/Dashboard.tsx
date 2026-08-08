@@ -39,31 +39,53 @@ interface EvolutionOverview {
 }
 
 export function DashboardPage() {
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
-      const [policies, evolution] = await Promise.all([
-        api.get<{ success: boolean; count: number }>('/api/policies'),
-        api.get<{ success: boolean; overview: EvolutionOverview }>('/api/evolution/overview'),
-      ]);
-      return {
-        totalPolicies: policies.count || 0,
-        totalRuns: 0,
-        avgSuccessRate: 0,
-        verifiedCount: evolution.overview?.verifiedCount || 0,
-      };
+      try {
+        const [policies, evolution] = await Promise.all([
+          api.get<{ success: boolean; count: number }>('/api/policies'),
+          api.get<{ success: boolean; overview: EvolutionOverview }>('/api/evolution/overview'),
+        ]);
+        return {
+          totalPolicies: policies.count || 0,
+          totalRuns: 0,
+          avgSuccessRate: 0,
+          verifiedCount: evolution.overview?.verifiedCount || 0,
+        };
+      } catch (err) {
+        // Return default stats if API fails
+        return {
+          totalPolicies: 0,
+          totalRuns: 0,
+          avgSuccessRate: 0,
+          verifiedCount: 0,
+        };
+      }
     },
   });
 
   const { data: nvidiaHealth, isLoading: healthLoading } = useQuery({
     queryKey: ['nvidia-health'],
-    queryFn: () => api.get<NvidiaHealth>('/api/nvidia/health'),
+    queryFn: async () => {
+      try {
+        return await api.get<NvidiaHealth>('/api/nvidia/health');
+      } catch {
+        return { overall: 'unknown', checks: {} };
+      }
+    },
     refetchInterval: 30000,
   });
 
   const { data: evolutionOverview } = useQuery({
     queryKey: ['evolution-overview'],
-    queryFn: () => api.get<{ success: boolean; overview: EvolutionOverview }>('/api/evolution/overview'),
+    queryFn: async () => {
+      try {
+        return await api.get<{ success: boolean; overview: EvolutionOverview }>('/api/evolution/overview');
+      } catch {
+        return { success: true, overview: { policiesEvolved: 0, totalVersions: 0, verifiedCount: 0, measuredCount: 0, avgGainPct: 0 } };
+      }
+    },
   });
 
   const isLoading = statsLoading || healthLoading;

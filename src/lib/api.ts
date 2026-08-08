@@ -6,7 +6,7 @@
  * Centralized fetch wrapper with auth, error handling, and types.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:2009';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://delightful-cooperation-production-a998.up.railway.app';
 
 export class ApiError extends Error {
   status: number;
