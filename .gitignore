@@ -87,3 +87,5 @@ coverage/
 .eslintcache
 .parcel-cache/
 .turbo/
+.vercel
+.env*
