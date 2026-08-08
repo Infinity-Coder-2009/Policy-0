@@ -4,8 +4,8 @@
  * Main application router with Clerk-protected routes.
  */
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useUser, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useUser, SignedIn, SignedOut, RedirectToSignIn, useAuth } from '@clerk/clerk-react';
 import { Layout } from './components/layout';
 import { LoginPage, SignupPage } from './pages/auth';
 import { DashboardPage } from './pages/Dashboard';
@@ -14,19 +14,27 @@ import { PoliciesPage } from './pages/Policies';
 import { FlywheelPage } from './pages/Flywheel';
 import { SettingsPage } from './pages/Settings';
 import { HealthPage } from './pages/Health';
+import { useEffect } from 'react';
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <SignedIn>
-        <Layout>{children}</Layout>
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  const { isLoaded, isSignedIn } = useUser();
+
+  console.log('ProtectedRoute - isLoaded:', isLoaded, 'isSignedIn:', isSignedIn);
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-[#0A0A1A] flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <RedirectToSignIn />;
+  }
+
+  return <Layout>{children}</Layout>;
 }
 
 export default function App() {
