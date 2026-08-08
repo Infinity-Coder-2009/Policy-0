@@ -2009,13 +2009,13 @@ init_logger();
 var import_zod = require("zod");
 var corsMiddleware = (0, import_cors.default)({
   origin: (origin, callback) => {
+    const envOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",").map((s) => s.trim()) : [];
     const allowedOrigins = [
-      "https://policy-0.com",
-      "https://www.policy-0.com",
       "http://localhost:3000",
       "http://localhost:5173",
       "http://127.0.0.1:3000",
-      "http://127.0.0.1:5173"
+      "http://127.0.0.1:5173",
+      ...envOrigins
     ];
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
