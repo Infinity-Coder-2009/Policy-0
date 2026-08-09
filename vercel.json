@@ -4,6 +4,10 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
@@ -35,12 +39,12 @@
         },
         {
           "key": "Strict-Transport-Security",
-          "value": "max-age=31536000; includeSubDomains"
+          "value": "max-age=31536000, includeSubDomains"
         }
       ]
     }
   ],
   "env": {
-    "VITE_API_URL": "https://policy-0-backend.onrender.com"
+    "VITE_API_URL": "https://delightful-cooperation-production-a998.up.railway.app"
   }
 }
