@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "21st": {
+      "url": "https://21st.dev/api/mcp",
+      "headers": {
+        "x-api-key": "21st_sk_2e580cb5527be4f252ad49cd606446ca0a247d6682f93c4fc970f1392574d285"
+      }
+    },
+    "supabase": {
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase@latest"],
+      "env": {
+        "SUPABASE_URL": "https://vhqesxqjwqjqzhnulxez.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "sb_publishable_7tnhhXQyZHbY-lbtOXzumQ_1aWhiXNc"
+      }
+    }
+  }
+}
