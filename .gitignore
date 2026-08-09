@@ -89,3 +89,4 @@ coverage/
 .turbo/
 .vercel
 .env*
+credentials.json
