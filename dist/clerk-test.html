@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clerk Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@4.73.3/dist/clerk.browser.js"></script>
+  <style>
+    body { background: #0A0A1A; color: white; font-family: sans-serif; padding: 20px; }
+    .status { padding: 10px; margin: 10px 0; border-radius: 8px; }
+    .ok { background: #00CC88; }
+    .error { background: #FF3355; }
+  </style>
+</head>
+<body>
+  <h1>Clerk Initialization Test</h1>
+  <div id="status">Testing...</div>
+  <div id="clerk-status"></div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const clerkStatusEl = document.getElementById('clerk-status');
+    
+    try {
+      const clerk = new Clerk('pk_test_c3RlcmxpbmctcmluZ3RhaWwtNDguY2xlcmsuYWNjb3VudHMuZGV2JA');
+      
+      clerk.load().then(() => {
+        statusEl.className = 'status ok';
+        statusEl.textContent = 'Clerk loaded successfully!';
+        
+        if (clerk.user) {
+          clerkStatusEl.innerHTML = `<div class="status ok">Signed in as: ${clerk.user.primaryEmailAddress?.emailAddress}</div>`;
+        } else {
+          clerkStatusEl.innerHTML = `<div class="status">Not signed in</div>`;
+        }
+      }).catch(err => {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Clerk load error: ' + err.message;
+      });
+    } catch (err) {
+      statusEl.className = 'status error';
+      statusEl.textContent = 'Clerk init error: ' + err.message;
+    }
+  </script>
+</body>
+</html>
