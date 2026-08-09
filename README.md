@@ -1,6 +1,6 @@
 # Policy-0
 
-> Robotics Policy Generation Platform
+> Robotics Policy Generation Platform - Enhanced Version
 
 [![CI/CD](https://github.com/policy-0/policy-0/actions/workflows/ci.yml/badge.svg)](https://github.com/policy-0/policy-0/actions)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)](https://www.typescriptlang.org/)
@@ -12,11 +12,18 @@ Policy-0 is a full-stack platform for generating, simulating, and deploying robo
 ## 🚀 Live Demo
 
 - **Frontend**: https://policy-0.vercel.app
-- **Backend**: https://policy-0-backend.onrender.com
-- **API Docs**: https://policy-0-backend.onrender.com/api
+- **Backend**: https://delightful-cooperation-production-a998.up.railway.app
+- **API Docs**: https://delightful-cooperation-production-a998.up.railway.app/api
+- **Health Check**: https://delightful-cooperation-production-a998.up.railway.app/api/health
 
 ## ✨ Features
 
+### Policy Generation Methods
+- **Plan A - Symbolic Trajectory Code**: For precise, repeatable manipulation tasks with Cartesian impedance control
+- **Plan B - Neural VLA Policy (ONNX)**: Vision-based manipulation with neural policy predictions
+- **Plan C - Reinforcement Learning (PPO)**: Complex locomotion and dexterous manipulation via GPU-accelerated training
+
+### Core Features
 - **Task-to-Policy**: Describe a robot task in natural language → get a working policy
 - **VLM Analysis**: Cosmos Reasoner NIM for video/text understanding
 - **Policy Synthesis**: NIM LLM (Llama 3.1 70B) for code generation
@@ -32,7 +39,7 @@ Policy-0 is a full-stack platform for generating, simulating, and deploying robo
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │   Frontend      │────▶│   Backend       │────▶│   PostgreSQL    │
-│   (Vercel)      │     │   (Render)      │     │   (Supabase)    │
+│   (Vercel)      │     │   (Railway)     │     │   (Supabase)    │
 │   React 19      │     │   Express       │     │                 │
 │   Tailwind CSS  │     │   TypeScript    │     │                 │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
@@ -64,7 +71,7 @@ Policy-0 is a full-stack platform for generating, simulating, and deploying robo
 
 ### Infrastructure
 - **Frontend**: Vercel
-- **Backend**: Render
+- **Backend**: Railway
 - **Database**: Supabase (PostgreSQL)
 - **CI/CD**: GitHub Actions
 - **Monitoring**: Prometheus + Grafana
@@ -95,7 +102,7 @@ nano .env
 # Generate Prisma client
 npm run prisma:generate
 
-# Run migrations
+# Run migrations (if using PostgreSQL)
 npm run prisma:migrate
 
 # Start development server
@@ -117,9 +124,21 @@ DATABASE_URL=postgresql://user:pass@host:5432/policy0
 JWT_SECRET=your-secret-key
 JWT_EXPIRES_IN=24h
 JWT_REFRESH_EXPIRES_IN=7d
+POLICY0_API_KEY=policy0-dev-key-change-in-production
+
+# Clerk Authentication
+VITE_CLERK_PUBLISHABLE_KEY=pk_your_clerk_publishable_key
+CLERK_SECRET_KEY=sk_your_clerk_secret_key
+
+# Supabase
+VITE_SUPABASE_URL=https://your-supabase-url.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_your_key
 
 # NVIDIA
-NVIDIA_API_KEY=your-nvidia-api-key
+NVIDIA_API_KEY=nvapi-your-nvidia-api-key
+NVIDIA_API_BASE=https://api.nvidia.com
+NIM_LLM_ENDPOINT=https://api.nvidia.com/v1/nim/llama-3-70b
+COSMOS_NIM_ENDPOINT=https://api.nvidia.com/v1/cosmos/reasoner
 
 # Feature Flags
 USE_COSMOS_VLM=true
@@ -130,7 +149,7 @@ USE_LEAPP_EXPORT=true
 USE_OSMO=true
 
 # CORS
-CORS_ORIGINS=http://localhost:5173
+CORS_ORIGINS=http://localhost:5173,https://policy-0.vercel.app
 ```
 
 ## 🧪 Testing
@@ -142,28 +161,52 @@ npm test
 # Run tests in watch mode
 npm run test:watch
 
+# Run tests with UI
+npm run test:ui
+
 # Typecheck
 npm run typecheck
 ```
 
 ## 🚢 Deployment
 
-### Frontend (Vercel)
+### GitHub Setup
 ```bash
-vercel --prod
+# Push to GitHub
+git add .
+git commit -m "feat: enhanced policy generation and auth"
+git push origin main
 ```
 
-### Backend (Render)
-```bash
-# Automatic via GitHub Actions on push to main
-# Or manual:
-render deploy
-```
+### Frontend Deployment (Vercel)
+1. Connect your GitHub repository to Vercel
+2. Set environment variables in Vercel dashboard:
+   - `VITE_CLERK_PUBLISHABLE_KEY`
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_API_URL` (point to Railway backend)
+   - `VITE_POLICY0_API_KEY`
+3. Deploy automatically on push to main
+
+### Backend Deployment (Railway)
+1. Connect your GitHub repository to Railway
+2. Set environment variables in Railway dashboard:
+   - All variables from `.env.example`
+   - PostgreSQL connection details
+3. Railway will automatically detect and deploy
 
 ### Database (Supabase)
+1. Apply migrations:
 ```bash
 npm run prisma:migrate
 ```
+
+### Verification Checklist
+- [ ] Frontend accessible at your Vercel URL
+- [ ] Backend accessible at your Railway URL
+- [ ] GitHub Actions workflow passing
+- [ ] API health check returns 200
+- [ ] Authentication works (Clerk setup)
 
 ## 📚 Documentation
 
@@ -171,6 +214,7 @@ npm run prisma:migrate
 - [API Reference](API.md) - Complete API documentation
 - [Deployment Guide](DEPLOYMENT.md) - Production deployment instructions
 - [Contributing](CONTRIBUTING.md) - How to contribute
+- [CONTEXT.md](CONTEXT.md) - Project context and improvements
 
 ## 🤝 Contributing
 
@@ -184,7 +228,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 
 - NVIDIA for Cosmos, NIM, Isaac Sim, Isaac Lab, and OSMO
 - Vercel for frontend hosting
-- Render for backend hosting
+- Railway for backend hosting
 - Supabase for database hosting
 
 ---

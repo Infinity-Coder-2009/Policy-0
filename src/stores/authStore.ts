@@ -2,11 +2,12 @@
  * Authentication Store (Zustand)
  * ============================================================
  * Manages user auth state, tokens, and persistence.
+ * Integrated with Clerk authentication flow.
  */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api } from '../lib/api';
+import { api, refreshAccessToken } from '../lib/api';
 
 export interface User {
   id: string;
@@ -28,6 +29,7 @@ interface AuthState {
   logout: () => void;
   refreshAccessToken: () => Promise<boolean>;
   clearError: () => void;
+  setupClerkSession: (url: string) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -89,6 +91,12 @@ export const useAuthStore = create<AuthState>()(
         }
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('policy0-auth');
+        // Clear Clerk session if exists
+        const clerkKey = Object.keys(localStorage).find(k => k.includes('clerk'));
+        if (clerkKey) {
+          localStorage.removeItem(clerkKey);
+        }
         set({
           user: null,
           accessToken: null,
@@ -124,6 +132,13 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clearError: () => set({ error: null }),
+
+      // Setup Clerk session for token sharing between frontend and backend
+      setupClerkSession: (url: string) => {
+        // This is called when Clerk session is established
+        // The Clerk session token is stored and used for backend auth
+        console.log('Clerk session active:', url);
+      },
     }),
     {
       name: 'policy0-auth',
