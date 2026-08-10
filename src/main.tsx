@@ -18,26 +18,20 @@ if (!clerkPublishableKey) {
   console.error('VITE_CLERK_PUBLISHABLE_KEY is not set');
 }
 
-// Clerk configuration for development mode
-const clerkConfig = {
-  publishableKey,
-  // Enable development mode features
-  appearance: {
-    theme: 'dark',
-    elements: {
-      frame: {
-        backgroundColor: '#0A0A1A',
-        borderRadius: '12px',
-      },
-    },
-  },
-  // Skip email verification in development for smoother testing
-  // Note: In production, configure your Clerk instance via dashboard
-};
-
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ClerkProvider {...clerkConfig}>
+    <ClerkProvider 
+      publishableKey={clerkPublishableKey}
+      appearance={{
+        theme: 'dark',
+        elements: {
+          frame: {
+            backgroundColor: '#0A0A1A',
+            borderRadius: '12px',
+          },
+        },
+      }}
+    >
       <App />
     </ClerkProvider>
   </StrictMode>
